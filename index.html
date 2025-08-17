@@ -84,7 +84,7 @@
 
   <div class="card">
     <header>
-      <h1>💍 John & Mary — Guest Check-In</h1>
+      <h1>💍 Vaclav & Juliet — Guest Check-In</h1>
       <p class="lead">Open camera and scan the QR on the invitation</p>
     </header>
 
@@ -129,6 +129,12 @@
 
     // on successful code scan
     async function onScanSuccess(decodedText, decodedResult) {
+
+    if (!decodedText.startsWith("https://script.google.com/macros/s/AKfycbyR-ZDglXImKX1m87toVJRfU8X29K4jbqGieU8PAv1KQX_-5qxRjQ1Ox38DuLxlMsBpBg/exec")) {
+  showMessage("❌ Invalid QR code — not a guest link", "error");
+  return;
+}
+
       // stop scanning briefly to avoid duplicate reads
       if (html5QrCode) {
         try { await html5QrCode.clear(); } catch(e){}
@@ -138,19 +144,9 @@
       // If your QR contains the FULL script URL (recommended for first-time setup),
       // decodedText will already be a URL like: https://script.google.com/macros/.../exec?id=G001
       // So we can directly fetch it:
-      try {
-        const resp = await fetch(decodedText, { method: "GET" });
-        const text = await resp.text();
-        // Show returned message from the script
-        if (text.includes("✅")) showMessage(text, "success");
-        else if (text.includes("⚠️")) showMessage(text, "warn");
-        else showMessage(text, "error");
-      } catch (err) {
-        // fallback: open the URL in a new tab if fetch fails (CORS or other)
-        console.error("Fetch error:", err);
-        showMessage("Network issue — opening in new tab", "error");
-        window.open(decodedText, "_blank");
-      }
+      window.open(decodedText, "_blank");
+showMessage("Opening check-in link…", "warn");
+
 
       // Restart scanner after a short delay so the host can scan next guest
       setTimeout(() => {
