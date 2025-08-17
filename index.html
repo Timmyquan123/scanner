@@ -8,7 +8,6 @@
   <!-- html5-qrcode library -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
-
   <style>
     :root{
       --bg1:#fff8f0; --bg2:#f8e7db; --gold:#b88a5b; --accent:#7b6a58;
@@ -39,7 +38,6 @@
     h1{margin:0;font-size:1.25rem;color:var(--gold);}
     p.lead{margin:6px 0 0;color:var(--accent);font-size:0.95rem;}
 
-    /* Scanner frame */
     #reader{
       width:100%;
       height:320px;
@@ -50,7 +48,6 @@
       border:3px solid rgba(184,138,91,0.12);
     }
 
-    /* result box */
     .result{
       min-height:54px;
       display:flex;align-items:center;justify-content:center;
@@ -63,7 +60,6 @@
     .result.warn{ background:#fff8e6;color:#665012;border:1px solid rgba(102,80,18,0.06); }
     .result.error{ background:#fff0f0;color:#7a1d24;border:1px solid rgba(122,29,36,0.06); }
 
-    /* controls */
     .controls{display:flex;gap:10px;justify-content:center;margin-top:12px;}
     button{
       padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:600;
@@ -75,8 +71,6 @@
     .btn-stop{ background:transparent; color:var(--accent); border:1px solid rgba(0,0,0,0.06); }
 
     footer{margin-top:12px;font-size:0.85rem;color:var(--accent);}
-
-    /* small help */
     .hint { font-size:0.9rem;color:#8b7766;margin-top:8px; }
   </style>
 </head>
@@ -84,14 +78,12 @@
 
   <div class="card">
     <header>
-      <h1>💍 Vaclav & Juliet — Guest Check-In</h1>
+      <h1>💍 John & Mary — Guest Check-In</h1>
       <p class="lead">Open camera and scan the QR on the invitation</p>
     </header>
 
-    <!-- Scanner -->
     <div id="reader"></div>
 
-    <!-- Result -->
     <div id="result" class="result" style="background:transparent;color:var(--accent);min-height:48px;">
       Ready to scan — allow camera access
     </div>
@@ -102,23 +94,16 @@
     </div>
 
     <p class="hint">Tip: Use a tablet for faster scanning and nicer UX.</p>
-
     <footer>With love 💖 — Wedding Guest Check-In</footer>
   </div>
 
   <script>
-    // -----------------------
-    // CONFIG: nothing to change here if you encoded the full script URL into the QR codes.
-    // The QR codes should contain the full check-in URL like:
-    // https://script.google.com/macros/s/AKfycb.../exec?id=G001
-    // -----------------------
     let html5QrCode;
     const readerId = "reader";
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const resultEl = document.getElementById("result");
 
-    // Update status box helper
     function showMessage(text, type) {
       resultEl.textContent = text;
       resultEl.classList.remove("success","warn","error");
@@ -127,44 +112,39 @@
       if (type === "error") resultEl.classList.add("error");
     }
 
-    // on successful code scan
     async function onScanSuccess(decodedText, decodedResult) {
-
-    if (!decodedText.startsWith("https://script.google.com/macros/s/AKfycbyR-ZDglXImKX1m87toVJRfU8X29K4jbqGieU8PAv1KQX_-5qxRjQ1Ox38DuLxlMsBpBg/exec")) {
-  showMessage("❌ Invalid QR code — not a guest link", "error");
-  return;
-}
-
-      // stop scanning briefly to avoid duplicate reads
-      if (html5QrCode) {
-        try { await html5QrCode.clear(); } catch(e){}
+      // Validate QR code format
+      if (!decodedText.startsWith("https://script.google.com/macros/s/AKfycbyR-ZDglXImKX1m87toVJRfU8X29K4jbqGieU8PAv1KQX_-5qxRjQ1Ox38DuLxlMsBpBg/exec")) {
+        showMessage("❌ Invalid QR code — not a guest link", "error");
+        return;
       }
-      showMessage("Processing…", "warn");
 
-      // If your QR contains the FULL script URL (recommended for first-time setup),
-      // decodedText will already be a URL like: https://script.google.com/macros/.../exec?id=G001
-      // So we can directly fetch it:
+      // Stop scanning after one scan
+      if (html5QrCode) {
+        try {
+          await html5QrCode.stop();
+          await html5QrCode.clear();
+        } catch(e) {
+          console.error("Error stopping scanner:", e);
+        }
+      }
+
+      showMessage("Opening guest check-in…", "success");
       window.open(decodedText, "_blank");
-showMessage("Opening check-in link…", "warn");
 
-
-      // Restart scanner after a short delay so the host can scan next guest
-      setTimeout(() => {
-        startScanner();
-      }, 1600);
+      // Scanner does NOT restart — must click start again manually
     }
 
     function onScanFailure(error) {
-      // Ignore continuous errors - optional logging
+      // Optional: ignore or log errors
     }
 
-    // start scanner
     function startScanner() {
       if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
         return; // already scanning
       }
-      // create an Html5Qrcode instance (render into 'reader' div)
-      html5QrCode = new Html5Qrcode(readerId, /* verbose= */ false);
+
+      html5QrCode = new Html5Qrcode(readerId, false);
 
       const config = { fps: 10, qrbox: { width: 280, height: 280 }, facingMode: "environment" };
 
@@ -174,14 +154,13 @@ showMessage("Opening check-in link…", "warn");
         onScanSuccess,
         onScanFailure
       ).then(() => {
-        showMessage("Scanning — point camera at guest QR", null);
+        showMessage("📷 Scanning — point camera at guest QR", null);
       }).catch(err => {
-        showMessage("Camera access denied or unavailable. Try HTTPS/localhost.", "error");
+        showMessage("❌ Camera access denied or unavailable. Try HTTPS/localhost.", "error");
         console.error(err);
       });
     }
 
-    // stop scanner
     function stopScanner() {
       if (!html5QrCode) {
         showMessage("Scanner not active", "error");
@@ -189,19 +168,15 @@ showMessage("Opening check-in link…", "warn");
       }
       html5QrCode.stop().then(() => {
         html5QrCode.clear();
-        showMessage("Scanning stopped", "error");
+        showMessage("🔴 Scanning stopped", "error");
       }).catch(err => {
         console.error(err);
         showMessage("Error stopping scanner", "error");
       });
     }
 
-    // Button wiring
     startBtn.addEventListener("click", startScanner);
     stopBtn.addEventListener("click", stopScanner);
-
-    // Auto-start on mobile for convenience (try, but may be blocked by browser)
-    // startScanner();
   </script>
 </body>
 </html>
