@@ -1,75 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Wedding Check-In</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Wedding Guest Check-In</title>
+
+  <!-- html5-qrcode library -->
   <script src="https://unpkg.com/html5-qrcode"></script>
+
+
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      text-align: center;
-      background: linear-gradient(135deg, #fff8f0, #f8e1d4);
-      color: #5a4634;
-      padding: 20px;
+    :root{
+      --bg1:#fff8f0; --bg2:#f8e7db; --gold:#b88a5b; --accent:#7b6a58;
+      --glass: rgba(255,255,255,0.85);
     }
-    h1 {
-      color: #b88a5b;
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+    body{
+      display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#3e2f26;padding:20px;
     }
-    #reader {
-      width: 300px;
-      margin: 20px auto;
-      border: 3px solid #b88a5b;
-      border-radius: 15px;
-      background: white;
+
+    .card{
+      width:100%;
+      max-width:420px;
+      background:var(--glass);
+      border-radius:18px;
+      box-shadow:0 10px 40px rgba(0,0,0,0.12);
+      padding:18px;
+      text-align:center;
+      backdrop-filter: blur(6px);
     }
-    #result {
-      font-size: 1.2em;
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 10px;
+
+    header{
+      border-bottom:1px solid rgba(184,138,91,0.12);
+      padding-bottom:12px;margin-bottom:12px;
     }
-    .success {
-      background: #d4edda;
-      color: #155724;
+    h1{margin:0;font-size:1.25rem;color:var(--gold);}
+    p.lead{margin:6px 0 0;color:var(--accent);font-size:0.95rem;}
+
+    /* Scanner frame */
+    #reader{
+      width:100%;
+      height:320px;
+      border-radius:12px;
+      overflow:hidden;
+      margin:14px 0;
+      box-shadow:0 8px 30px rgba(184,138,91,0.08);
+      border:3px solid rgba(184,138,91,0.12);
     }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
+
+    /* result box */
+    .result{
+      min-height:54px;
+      display:flex;align-items:center;justify-content:center;
+      border-radius:10px;padding:10px 12px;
+      font-weight:600;
+      transition:all .25s ease;
+      margin-top:10px;
     }
-    .warning {
-      background: #fff3cd;
-      color: #856404;
+    .result.success{ background:#e6f6ec;color:#14522a;border:1px solid rgba(20,82,42,0.08); }
+    .result.warn{ background:#fff8e6;color:#665012;border:1px solid rgba(102,80,18,0.06); }
+    .result.error{ background:#fff0f0;color:#7a1d24;border:1px solid rgba(122,29,36,0.06); }
+
+    /* controls */
+    .controls{display:flex;gap:10px;justify-content:center;margin-top:12px;}
+    button{
+      padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:600;
+      box-shadow:0 6px 18px rgba(0,0,0,0.08);
+      transition:transform .12s ease;
     }
+    button:active{transform:translateY(1px);}
+    .btn-start{ background:linear-gradient(90deg,#b88a5b,#d2a36a); color:white; }
+    .btn-stop{ background:transparent; color:var(--accent); border:1px solid rgba(0,0,0,0.06); }
+
+    footer{margin-top:12px;font-size:0.85rem;color:var(--accent);}
+
+    /* small help */
+    .hint { font-size:0.9rem;color:#8b7766;margin-top:8px; }
   </style>
 </head>
 <body>
-  <h1>💍 Wedding Check-In</h1>
-  <p>Scan your invitation QR code below</p>
-  <div id="reader"></div>
-  <div id="result"></div>
+
+  <div class="card">
+    <header>
+      <h1>💍 John & Mary — Guest Check-In</h1>
+      <p class="lead">Open camera and scan the QR on the invitation</p>
+    </header>
+
+    <!-- Scanner -->
+    <div id="reader"></div>
+
+    <!-- Result -->
+    <div id="result" class="result" style="background:transparent;color:var(--accent);min-height:48px;">
+      Ready to scan — allow camera access
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" class="btn-start">Start Scanning</button>
+      <button id="stopBtn" class="btn-stop">Stop</button>
+    </div>
+
+    <p class="hint">Tip: Use a tablet for faster scanning and nicer UX.</p>
+
+    <footer>With love 💖 — Wedding Guest Check-In</footer>
+  </div>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0zABeNV4vsa9Hf3J1MZ7-gS10UnnnEkZvWH43zwDzWGVbPZq2S_BR05H1SudKfKurhQ/exec";
+    // -----------------------
+    // CONFIG: nothing to change here if you encoded the full script URL into the QR codes.
+    // The QR codes should contain the full check-in URL like:
+    // https://script.google.com/macros/s/AKfycb.../exec?id=G001
+    // -----------------------
+    let html5QrCode;
+    const readerId = "reader";
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const resultEl = document.getElementById("result");
 
-    function onScanSuccess(decodedText) {
-      fetch(decodedText)
-        .then(res => res.text())
-        .then(msg => {
-          const resultDiv = document.getElementById("result");
-          resultDiv.textContent = msg;
-          if (msg.includes("✅")) {
-            resultDiv.className = "success";
-          } else if (msg.includes("⚠️")) {
-            resultDiv.className = "warning";
-          } else {
-            resultDiv.className = "error";
-          }
-        });
+    // Update status box helper
+    function showMessage(text, type) {
+      resultEl.textContent = text;
+      resultEl.classList.remove("success","warn","error");
+      if (type === "success") resultEl.classList.add("success");
+      if (type === "warn") resultEl.classList.add("warn");
+      if (type === "error") resultEl.classList.add("error");
     }
 
-    let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-    html5QrcodeScanner.render(onScanSuccess);
+    // on successful code scan
+    async function onScanSuccess(decodedText, decodedResult) {
+      // stop scanning briefly to avoid duplicate reads
+      if (html5QrCode) {
+        try { await html5QrCode.clear(); } catch(e){}
+      }
+      showMessage("Processing…", "warn");
+
+      // If your QR contains the FULL script URL (recommended for first-time setup),
+      // decodedText will already be a URL like: https://script.google.com/macros/.../exec?id=G001
+      // So we can directly fetch it:
+      try {
+        const resp = await fetch(decodedText, { method: "GET" });
+        const text = await resp.text();
+        // Show returned message from the script
+        if (text.includes("✅")) showMessage(text, "success");
+        else if (text.includes("⚠️")) showMessage(text, "warn");
+        else showMessage(text, "error");
+      } catch (err) {
+        // fallback: open the URL in a new tab if fetch fails (CORS or other)
+        console.error("Fetch error:", err);
+        showMessage("Network issue — opening in new tab", "error");
+        window.open(decodedText, "_blank");
+      }
+
+      // Restart scanner after a short delay so the host can scan next guest
+      setTimeout(() => {
+        startScanner();
+      }, 1600);
+    }
+
+    function onScanFailure(error) {
+      // Ignore continuous errors - optional logging
+    }
+
+    // start scanner
+    function startScanner() {
+      if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
+        return; // already scanning
+      }
+      // create an Html5Qrcode instance (render into 'reader' div)
+      html5QrCode = new Html5Qrcode(readerId, /* verbose= */ false);
+
+      const config = { fps: 10, qrbox: { width: 280, height: 280 }, facingMode: "environment" };
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanFailure
+      ).then(() => {
+        showMessage("Scanning — point camera at guest QR", null);
+      }).catch(err => {
+        showMessage("Camera access denied or unavailable. Try HTTPS/localhost.", "error");
+        console.error(err);
+      });
+    }
+
+    // stop scanner
+    function stopScanner() {
+      if (!html5QrCode) {
+        showMessage("Scanner not active", "error");
+        return;
+      }
+      html5QrCode.stop().then(() => {
+        html5QrCode.clear();
+        showMessage("Scanning stopped", "error");
+      }).catch(err => {
+        console.error(err);
+        showMessage("Error stopping scanner", "error");
+      });
+    }
+
+    // Button wiring
+    startBtn.addEventListener("click", startScanner);
+    stopBtn.addEventListener("click", stopScanner);
+
+    // Auto-start on mobile for convenience (try, but may be blocked by browser)
+    // startScanner();
   </script>
 </body>
 </html>
